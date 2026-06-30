@@ -87,4 +87,19 @@ class Cancha
     {
         return $this->db->query("SELECT COUNT(*) FROM canchas WHERE estado = 'disponible'")->fetchColumn();
     }
+
+    public function resolverImagen($cancha)
+    {
+        if (!empty($cancha['imagen'])) {
+            return $cancha['imagen'];
+        }
+        $extensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        foreach ($extensions as $ext) {
+            $file = CANCHAS_IMG_DIR . 'cancha_' . $cancha['id'] . '.' . $ext;
+            if (file_exists($file)) {
+                return 'cancha_' . $cancha['id'] . '.' . $ext;
+            }
+        }
+        return '';
+    }
 }

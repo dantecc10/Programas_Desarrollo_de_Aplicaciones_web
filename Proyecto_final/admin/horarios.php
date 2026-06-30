@@ -29,9 +29,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $historial->registrar($_SESSION['usuario_id'], 'Horarios generados', "Horarios generados para cancha #$canchaId");
         $_SESSION['mensaje'] = 'Horarios generados exitosamente.'; $_SESSION['tipo_mensaje'] = 'success';
-    } elseif ($accion === 'toggle') {
-        $horarioModel->actualizar($_POST['id'], ['estado' => $_POST['estado']]);
-        $_SESSION['mensaje'] = 'Estado del horario actualizado.'; $_SESSION['tipo_mensaje'] = 'success';
     }
     header('Location: horarios.php'); exit;
 }
@@ -115,14 +112,9 @@ require_once __DIR__ . '/../includes/header.php';
                                     </span>
                                 </td>
                                 <td>
-                                    <form method="POST" style="display:inline">
-                                        <input type="hidden" name="accion" value="toggle">
-                                        <input type="hidden" name="id" value="<?php echo $h['id']; ?>">
-                                        <input type="hidden" name="estado" value="<?php echo $h['estado'] === 'disponible' ? 'no_disponible' : 'disponible'; ?>">
-                                        <button class="btn btn-sm btn-<?php echo $h['estado'] === 'disponible' ? 'warning' : 'success'; ?>">
-                                            <i class="bi bi-<?php echo $h['estado'] === 'disponible' ? 'x-circle' : 'check-circle'; ?>"></i>
-                                        </button>
-                                    </form>
+                                    <button class="btn btn-sm btn-toggle btn-<?php echo $h['estado'] === 'disponible' ? 'warning' : 'success'; ?>" data-id="<?php echo $h['id']; ?>" data-estado="<?php echo $h['estado'] === 'disponible' ? 'no_disponible' : 'disponible'; ?>">
+                                        <i class="bi bi-<?php echo $h['estado'] === 'disponible' ? 'x-circle' : 'check-circle'; ?>"></i>
+                                    </button>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -139,4 +131,30 @@ require_once __DIR__ . '/../includes/header.php';
         <?php endif; ?>
     </div>
 </div>
+<script>
+document.querySelectorAll('.btn-toggle').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        const estado = this.dataset.estado;
+        fetch('../api/toggle_horario.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'id=' + id + '&estado=' + estado
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                const tr = this.closest('tr');
+                const badge = tr.querySelector('.badge');
+                const isDisponible = data.estado === 'disponible';
+                badge.className = 'badge bg-' + (isDisponible ? 'success' : 'danger');
+                badge.textContent = isDisponible ? 'Disponible' : 'No Disponible';
+                this.className = 'btn btn-sm btn-toggle btn-' + (isDisponible ? 'warning' : 'success');
+                this.querySelector('i').className = 'bi bi-' + (isDisponible ? 'x-circle' : 'check-circle');
+                this.dataset.estado = isDisponible ? 'no_disponible' : 'disponible';
+            }
+        });
+    });
+});
+</script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

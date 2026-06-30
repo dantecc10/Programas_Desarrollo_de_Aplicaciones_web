@@ -13,6 +13,8 @@ if (!$canchaId || !$start || !$end) {
 
 $db = Database::conectar();
 
+$db->exec("UPDATE reservaciones SET estado = 'cancelada' WHERE estado = 'pendiente' AND fecha_reservacion < DATE_SUB(NOW(), INTERVAL 15 MINUTE)");
+
 $eventos = [];
 
 $inicio = new DateTime($start);

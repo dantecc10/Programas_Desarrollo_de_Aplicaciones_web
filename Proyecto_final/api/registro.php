@@ -49,10 +49,6 @@ $_SESSION['usuario_rol'] = 'cliente';
 $_SESSION['usuario_email'] = $email;
 $historial->registrar($id, 'Registro', 'Nuevo usuario registrado');
 
-require_once __DIR__ . '/../classes/Mailer.php';
-$mailer = new Mailer();
-$mailer->bienvenida($nombre, $email);
-
 $_SESSION['mensaje'] = 'Registro exitoso. ¡Bienvenido!';
 $_SESSION['tipo_mensaje'] = 'success';
 header('Location: ../index.php');

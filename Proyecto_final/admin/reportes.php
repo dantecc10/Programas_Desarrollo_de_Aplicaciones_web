@@ -22,7 +22,7 @@ $totalIngresos = array_sum(array_column($reporteIngresos, 'ingreso_total'));
 if ($canchaFiltro) {
     $reservacionesCancha = $reservacionModel->obtenerReservacionesPorCancha($canchaFiltro, $fechaInicio, $fechaFin);
 } else {
-    $reservacionesCancha = $reservacionModel->obtenerReservacionesPorFecha($fechaInicio, $fechaFin);
+    $reservacionesCancha = $reservacionModel->obtenerReservacionesCreadasEntre($fechaInicio, $fechaFin);
 }
 
 $canchas = $canchaModel->obtenerTodas();
@@ -134,7 +134,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="table-responsive">
             <table class="table table-hover table-striped">
                 <thead class="table-dark">
-                    <tr><th>#</th><th>Usuario</th><th>Cancha</th><th>Fecha</th><th>Horario</th><th>Total</th><th>Estado</th></tr>
+                    <tr><th>#</th><th>Usuario</th><th>Cancha</th><th>Fecha</th><th>Horario</th><th>Total</th><th>Estado</th><th>Observaciones</th></tr>
                 </thead>
                 <tbody>
                     <?php foreach ($reservacionesCancha as $r): ?>
@@ -151,10 +151,11 @@ require_once __DIR__ . '/../includes/header.php';
                             ?>
                             <span class="badge bg-<?php echo $mapa[$r['estado']] ?? 'secondary'; ?>"><?php echo ucfirst($r['estado']); ?></span>
                         </td>
+                        <td><small><?php echo htmlspecialchars($r['observaciones'] ?? '-'); ?></small></td>
                     </tr>
                     <?php endforeach; ?>
                     <?php if (empty($reservacionesCancha)): ?>
-                    <tr><td colspan="7" class="text-center text-muted">Sin reservaciones en el período</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted">Sin reservaciones en el período</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>

@@ -36,7 +36,7 @@ if ($soloVer || $reservacion['estado'] !== 'pendiente') {
                     <?php if ($reservacion['tipo_uso']): ?>
                     <p><strong>Uso:</strong> <?php echo htmlspecialchars($reservacion['tipo_uso']); ?></p>
                     <?php endif; ?>
-                    <p><strong>Total:</strong> $<?php echo number_format($reservacion['total'], 2); ?></p>
+                    <p class="fs-5 fw-bold text-success">Total: $<?php echo number_format($reservacion['total'], 2); ?></p>
                     <?php if ($pago): ?>
                     <hr>
                     <p><strong>Estado de Pago:</strong>
@@ -59,6 +59,10 @@ if ($soloVer || $reservacion['estado'] !== 'pendiente') {
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
+<?php
+$expiracion = strtotime($reservacion['fecha_reservacion']) + 900;
+$segundosRestantes = max(0, $expiracion - time());
+?>
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="card shadow">
@@ -66,18 +70,24 @@ require_once __DIR__ . '/../includes/header.php';
                 <h5><i class="bi bi-credit-card"></i> Simulación de Pago</h5>
             </div>
             <div class="card-body">
-                <div class="alert alert-info">
-                    <strong>Resumen de Reservación</strong><br>
-                    <strong>Cancha:</strong> <?php echo htmlspecialchars($reservacion['cancha_nombre']); ?><br>
-                    <strong>Fecha:</strong> <?php echo date('d/m/Y', strtotime($reservacion['fecha'])); ?><br>
-                    <strong>Horario:</strong> <?php echo substr($reservacion['hora_inicio'],0,5); ?> - <?php echo substr($reservacion['hora_fin'],0,5); ?><br>
-                    <?php if ($reservacion['tipo_uso']): ?>
-                    <strong>Uso:</strong> <?php echo htmlspecialchars($reservacion['tipo_uso']); ?><br>
-                    <?php endif; ?>
-                    <strong class="fs-5">Total a Pagar: $<?php echo number_format($reservacion['total'], 2); ?></strong>
+                <div class="bg-danger text-white rounded-3 p-3 mb-3 text-center" id="cronometro">
+                    <h5 class="mb-0"><i class="bi bi-clock"></i> Tiempo restante para pagar: <span id="tiempoRestante">--:--</span></h5>
+                    <small class="text-white-50">Si no pagas dentro de este tiempo, la reserva se cancelará automáticamente</small>
                 </div>
 
-                <form action="../api/pago.php" method="POST">
+                <div class="bg-white text-dark border rounded-3 p-3 mb-3">
+                    <h6 class="text-primary mb-3"><i class="bi bi-receipt"></i> Resumen de Reservación</h6>
+                    <p class="mb-1"><strong>Cancha:</strong> <?php echo htmlspecialchars($reservacion['cancha_nombre']); ?></p>
+                    <p class="mb-1"><strong>Fecha:</strong> <?php echo date('d/m/Y', strtotime($reservacion['fecha'])); ?></p>
+                    <p class="mb-1"><strong>Horario:</strong> <?php echo substr($reservacion['hora_inicio'],0,5); ?> - <?php echo substr($reservacion['hora_fin'],0,5); ?></p>
+                    <?php if ($reservacion['tipo_uso']): ?>
+                    <p class="mb-1"><strong>Uso:</strong> <?php echo htmlspecialchars($reservacion['tipo_uso']); ?></p>
+                    <?php endif; ?>
+                    <hr>
+                    <p class="fs-4 fw-bold text-success mb-0">Total a Pagar: $<?php echo number_format($reservacion['total'], 2); ?></p>
+                </div>
+
+                <form action="../api/pago.php" method="POST" id="formPago">
                     <input type="hidden" name="reservacion_id" value="<?php echo $reservacion['id']; ?>">
 
                     <div class="mb-3">
@@ -105,7 +115,7 @@ require_once __DIR__ . '/../includes/header.php';
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-success w-100 btn-lg" onclick="return confirm('¿Confirmar el pago de $<?php echo number_format($reservacion['total'], 2); ?>?')">
+                    <button type="submit" class="btn btn-success w-100 btn-lg" id="btnPagar" onclick="return confirm('¿Confirmar el pago de $<?php echo number_format($reservacion['total'], 2); ?>?')">
                         <i class="bi bi-check-circle"></i> Pagar $<?php echo number_format($reservacion['total'], 2); ?>
                     </button>
                 </form>
@@ -113,4 +123,38 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+(function() {
+    var segundos = <?php echo $segundosRestantes; ?>;
+    var span = document.getElementById('tiempoRestante');
+    var cronometro = document.getElementById('cronometro');
+    var btnPagar = document.getElementById('btnPagar');
+    var formPago = document.getElementById('formPago');
+
+    function actualizar() {
+        if (segundos <= 0) {
+            span.textContent = 'EXPIRADO';
+            cronometro.className = 'bg-secondary text-white rounded-3 p-3 mb-3 text-center';
+            btnPagar.disabled = true;
+            btnPagar.className = 'btn btn-secondary w-100 btn-lg';
+            btnPagar.innerHTML = '<i class="bi bi-x-circle"></i> Tiempo Expirado';
+            formPago.querySelector('select').disabled = true;
+            return;
+        }
+        var m = Math.floor(segundos / 60);
+        var s = segundos % 60;
+        span.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+        if (segundos <= 60) {
+            cronometro.className = 'bg-warning text-dark rounded-3 p-3 mb-3 text-center';
+        }
+    }
+
+    actualizar();
+    setInterval(function() {
+        segundos--;
+        actualizar();
+    }, 1000);
+})();
+</script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

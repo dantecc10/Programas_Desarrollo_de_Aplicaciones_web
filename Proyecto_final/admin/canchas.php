@@ -4,8 +4,12 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/auth_check.php';
 if (!esAdmin()) { header('Location: ../index.php'); exit; }
 require_once __DIR__ . '/../classes/Cancha.php';
+require_once __DIR__ . '/../classes/Horario.php';
+require_once __DIR__ . '/../classes/Precio.php';
 require_once __DIR__ . '/../classes/Historial.php';
 $canchaModel = new Cancha();
+$horarioModel = new Horario();
+$precioModel = new Precio();
 $historial = new Historial();
 
 function subirImagen($archivo, $id) {
@@ -14,7 +18,7 @@ function subirImagen($archivo, $id) {
     $extension = strtolower(pathinfo($archivo['name'], PATHINFO_EXTENSION));
     $permitidas = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
     if (!in_array($extension, $permitidas)) return null;
-    $nombreArchivo = 'cancha_' . $id . '_' . time() . '.' . $extension;
+    $nombreArchivo = 'cancha_' . $id . '.' . $extension;
     $rutaCompleta = $targetDir . $nombreArchivo;
     if (move_uploaded_file($archivo['tmp_name'], $rutaCompleta)) {
         return $nombreArchivo;
@@ -30,6 +34,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $img = subirImagen($_FILES['imagen'], $id);
             if ($img) $canchaModel->actualizar($id, ['imagen' => $img]);
         }
+        for ($dia = 1; $dia <= 7; $dia++) {
+            $slots = $horarioModel->generarHorarios($id, $dia, '08:00', '22:00', 60);
+            foreach ($slots as $slot) {
+                $horarioModel->crear($slot);
+            }
+        }
+        $precioModel->crear(['cancha_id' => $id, 'tipo_precio' => 'regular', 'nombre' => 'Hora Regular', 'precio' => $_POST['precio_por_hora'], 'dia_semana_inicio' => 1, 'dia_semana_fin' => 5, 'hora_inicio' => '08:00', 'hora_fin' => '18:00']);
+        $precioModel->crear(['cancha_id' => $id, 'tipo_precio' => 'pico', 'nombre' => 'Hora Pico', 'precio' => $_POST['precio_por_hora'] * 1.3, 'dia_semana_inicio' => 1, 'dia_semana_fin' => 5, 'hora_inicio' => '18:00', 'hora_fin' => '22:00']);
+        $precioModel->crear(['cancha_id' => $id, 'tipo_precio' => 'finde', 'nombre' => 'Fin de Semana', 'precio' => $_POST['precio_por_hora'] * 1.4, 'dia_semana_inicio' => 6, 'dia_semana_fin' => 7, 'hora_inicio' => '08:00', 'hora_fin' => '22:00']);
         $historial->registrar($_SESSION['usuario_id'], 'Cancha creada', "Cancha #$id creada");
         $_SESSION['mensaje'] = 'Cancha creada exitosamente.'; $_SESSION['tipo_mensaje'] = 'success';
     } elseif ($accion === 'editar') {
@@ -75,11 +88,12 @@ require_once __DIR__ . '/../includes/header.php';
         </thead>
         <tbody>
             <?php foreach ($canchas as $c): ?>
+            <?php $imgCancha = $canchaModel->resolverImagen($c); ?>
             <tr>
                 <td><?php echo $c['id']; ?></td>
                 <td>
-                    <?php if ($c['imagen']): ?>
-                        <img src="<?php echo SITE_URL; ?>/assets/img/canchas/<?php echo $c['imagen']; ?>" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:8px;">
+                    <?php if ($imgCancha): ?>
+                        <img src="<?php echo SITE_URL; ?>/assets/img/canchas/<?php echo $imgCancha; ?>" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:8px;">
                     <?php else: ?>
                         <span class="text-muted"><i class="bi bi-image fs-3"></i></span>
                     <?php endif; ?>

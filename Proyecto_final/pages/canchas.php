@@ -5,10 +5,16 @@ require_once __DIR__ . '/../classes/Cancha.php';
 $canchaModel = new Cancha();
 $tipos = $canchaModel->obtenerTipos();
 $tipoFiltro = $_GET['tipo'] ?? '';
+$busqueda = trim($_GET['buscar'] ?? '');
 $canchas = $canchaModel->obtenerTodas(true);
 if ($tipoFiltro) {
     $canchas = array_filter($canchas, function($c) use ($tipoFiltro) {
         return $c['tipo'] === $tipoFiltro;
+    });
+}
+if ($busqueda) {
+    $canchas = array_filter($canchas, function($c) use ($busqueda) {
+        return stripos($c['nombre'], $busqueda) !== false;
     });
 }
 require_once __DIR__ . '/../includes/header.php';
@@ -17,6 +23,7 @@ require_once __DIR__ . '/../includes/header.php';
     <h2><i class="bi bi-building"></i> Canchas Disponibles</h2>
     <div>
         <form method="GET" class="d-flex gap-2">
+            <input type="text" name="buscar" class="form-control" placeholder="Buscar por nombre..." value="<?php echo htmlspecialchars($busqueda); ?>">
             <select name="tipo" class="form-select" onchange="this.form.submit()">
                 <option value="">Todos los tipos</option>
                 <?php foreach ($tipos as $tipo): ?>
@@ -25,6 +32,7 @@ require_once __DIR__ . '/../includes/header.php';
                 </option>
                 <?php endforeach; ?>
             </select>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
         </form>
     </div>
 </div>
@@ -36,10 +44,11 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
     <?php endif; ?>
     <?php foreach ($canchas as $cancha): ?>
+    <?php $imgCancha = $canchaModel->resolverImagen($cancha); ?>
     <div class="col-md-4 mb-4">
         <div class="card h-100 shadow-sm">
-            <?php if ($cancha['imagen']): ?>
-            <img src="<?php echo SITE_URL; ?>/assets/img/canchas/<?php echo $cancha['imagen']; ?>" class="card-img-top" alt="<?php echo htmlspecialchars($cancha['nombre']); ?>" style="height:180px;object-fit:cover;">
+            <?php if ($imgCancha): ?>
+            <img src="<?php echo SITE_URL; ?>/assets/img/canchas/<?php echo $imgCancha; ?>" class="card-img-top" alt="<?php echo htmlspecialchars($cancha['nombre']); ?>" style="height:180px;object-fit:cover;">
             <?php else: ?>
             <div class="bg-secondary d-flex align-items-center justify-content-center" style="height:180px;border-radius:10px 10px 0 0;">
                 <i class="bi bi-image text-white" style="font-size:3rem;"></i>

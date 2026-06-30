@@ -12,5 +12,5 @@ if (!$canchaId || !$fecha) {
 }
 
 $horarioModel = new Horario();
-$horarios = $horarioModel->obtenerDisponibles($canchaId, $fecha);
+$horarios = $horarioModel->obtenerConDisponibilidad($canchaId, $fecha);
 echo json_encode($horarios);

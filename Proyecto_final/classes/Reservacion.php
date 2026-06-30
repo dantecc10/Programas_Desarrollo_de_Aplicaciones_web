@@ -87,8 +87,15 @@ class Reservacion
         return $stmt->execute([':estado' => $estado, ':id' => $id]);
     }
 
+    public function autoCancelarExpiradas()
+    {
+        $sql = "UPDATE reservaciones SET estado = 'cancelada' WHERE estado = 'pendiente' AND fecha_reservacion < DATE_SUB(NOW(), INTERVAL 15 MINUTE)";
+        return $this->db->exec($sql);
+    }
+
     public function verificarDisponibilidad($canchaId, $fecha, $horaInicio, $horaFin, $excluirId = null)
     {
+        $this->autoCancelarExpiradas();
         $sql = "SELECT COUNT(*) FROM reservaciones 
                 WHERE cancha_id = :cancha_id 
                 AND fecha = :fecha 
@@ -134,6 +141,19 @@ class Reservacion
         return $stmt->fetchAll();
     }
 
+    public function obtenerReservacionesCreadasEntre($fechaInicio, $fechaFin)
+    {
+        $sql = "SELECT r.*, c.nombre as cancha_nombre, c.tipo as cancha_tipo, u.nombre as usuario_nombre, u.email
+                FROM reservaciones r 
+                JOIN canchas c ON r.cancha_id = c.id 
+                JOIN usuarios u ON r.usuario_id = u.id 
+                WHERE r.fecha_reservacion BETWEEN :inicio AND :fin 
+                ORDER BY r.fecha_reservacion DESC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':inicio' => $fechaInicio . ' 00:00:00', ':fin' => $fechaFin . ' 23:59:59']);
+        return $stmt->fetchAll();
+    }
+
     public function obtenerReservacionesPorCancha($canchaId, $fechaInicio = null, $fechaFin = null)
     {
         $sql = "SELECT r.*, u.nombre as usuario_nombre FROM reservaciones r 
@@ -173,15 +193,16 @@ class Reservacion
 
     public function reporteIngresos($fechaInicio, $fechaFin)
     {
-        $sql = "SELECT DATE(r.fecha) as dia, c.tipo, COUNT(r.id) as total_reservaciones, SUM(r.total) as ingreso_total
+        $sql = "SELECT DATE(p.fecha_pago) as dia, c.tipo, COUNT(r.id) as total_reservaciones, SUM(p.monto) as ingreso_total
                 FROM reservaciones r
                 JOIN canchas c ON r.cancha_id = c.id
-                WHERE r.estado IN ('confirmada', 'completada')
-                AND r.fecha BETWEEN :inicio AND :fin
-                GROUP BY DATE(r.fecha), c.tipo
+                JOIN pagos p ON r.id = p.reservacion_id
+                WHERE p.estado_pago = 'completado'
+                AND p.fecha_pago BETWEEN :inicio AND :fin
+                GROUP BY DATE(p.fecha_pago), c.tipo
                 ORDER BY dia";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+        $stmt->execute([':inicio' => $fechaInicio . ' 00:00:00', ':fin' => $fechaFin . ' 23:59:59']);
         return $stmt->fetchAll();
     }
 }

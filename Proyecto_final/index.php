@@ -10,7 +10,6 @@ require_once __DIR__ . '/includes/header.php';
 ?>
 <div class="hero-section text-center py-5 rounded-3 mb-4" style="background:linear-gradient(135deg, #0d6efd 0%, #0056b3 100%);">
     <div class="container">
-        <img src="https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img,w_800,h_401/https://forzasoccer.mx/wp-content/uploads/2024/08/logo-fs.png" alt="ForzaSoccer" class="mb-3" style="max-height:80px;filter:brightness(0) invert(1);">
         <h1 class="display-4 fw-bold text-white"><i class="bi bi-trophy"></i> Reserva tu Cancha Deportiva</h1>
         <p class="lead text-white-50">Encuentra y reserva la mejor cancha para tu deporte favorito al mejor precio.</p>
         <div class="d-flex justify-content-center gap-3 mt-4">
@@ -43,6 +42,10 @@ require_once __DIR__ . '/includes/header.php';
             </div>
         </div>
     </div>
+</div>
+
+<div class="bg-primary text-white text-center py-3 rounded-3 mb-4">
+    <h3 class="mb-0"><i class="bi bi-star"></i> Servicios</h3>
 </div>
 
 <div class="row mb-4">
@@ -91,10 +94,11 @@ require_once __DIR__ . '/includes/header.php';
 <h3 class="mb-3">Canchas Disponibles</h3>
 <div class="row">
     <?php foreach ($canchasRecientes as $cancha): ?>
+    <?php $imgCancha = $canchaModel->resolverImagen($cancha); ?>
     <div class="col-md-3 mb-4">
         <div class="card h-100 shadow-sm">
-            <?php if ($cancha['imagen']): ?>
-            <img src="<?php echo SITE_URL; ?>/assets/img/canchas/<?php echo $cancha['imagen']; ?>" class="card-img-top" alt="" style="height:150px;object-fit:cover;">
+            <?php if ($imgCancha): ?>
+            <img src="<?php echo SITE_URL; ?>/assets/img/canchas/<?php echo $imgCancha; ?>" class="card-img-top" alt="" style="height:150px;object-fit:cover;">
             <?php else: ?>
             <div class="bg-secondary d-flex align-items-center justify-content-center" style="height:150px;border-radius:10px 10px 0 0;">
                 <i class="bi bi-image text-white" style="font-size:2.5rem;"></i>
@@ -140,19 +144,4 @@ require_once __DIR__ . '/includes/header.php';
     </div>
 </div>
 
-<div class="bg-dark text-white rounded-3 p-4 mt-3 mb-4">
-    <div class="row align-items-center">
-        <div class="col-md-4 text-center mb-3 mb-md-0">
-            <img src="https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img,w_844,h_423/https://forzasoccer.mx/wp-content/uploads/2024/08/logo-fs.png" alt="ForzaSoccer" style="max-height:60px;filter:brightness(0) invert(1);">
-        </div>
-        <div class="col-md-4 text-center mb-3 mb-md-0">
-            <h6>ATENCIÓN TELEFÓNICA</h6>
-            <p class="mb-0 small">Lunes a Domingo: 9:00 a 21:00 hrs.</p>
-        </div>
-        <div class="col-md-4 text-center">
-            <h6>CONTACTO</h6>
-            <p class="mb-0 small">play@forzasoccer.mx | Tel: 771 241 0959</p>
-        </div>
-    </div>
-</div>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

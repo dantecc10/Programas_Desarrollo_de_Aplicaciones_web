@@ -61,8 +61,9 @@ require_once __DIR__ . '/../includes/header.php';
                 <h5><i class="bi bi-info-circle"></i> <?php echo htmlspecialchars($cancha['nombre']); ?></h5>
             </div>
             <div class="card-body">
-                <?php if ($cancha['imagen']): ?>
-                <img src="<?php echo SITE_URL; ?>/assets/img/canchas/<?php echo $cancha['imagen']; ?>" alt="" class="w-100 rounded mb-3" style="max-height:200px;object-fit:cover;">
+                <?php $imgCancha = $canchaModel->resolverImagen($cancha); ?>
+                <?php if ($imgCancha): ?>
+                <img src="<?php echo SITE_URL; ?>/assets/img/canchas/<?php echo $imgCancha; ?>" alt="" class="w-100 rounded mb-3" style="max-height:200px;object-fit:cover;">
                 <?php endif; ?>
                 <p><strong>Tipo:</strong> <?php echo htmlspecialchars($cancha['tipo']); ?></p>
                 <p><strong>Descripción:</strong> <?php echo htmlspecialchars($cancha['descripcion']); ?></p>
@@ -120,9 +121,9 @@ require_once __DIR__ . '/../includes/header.php';
                         <textarea name="observaciones" class="form-control" rows="2" placeholder="Opcional"></textarea>
                     </div>
 
-                    <div class="alert alert-info" id="resumenReserva" style="display:none;">
+                    <div class="alert alert-info mb-0" id="resumenReserva" style="display:none;">
                         <strong>Resumen:</strong>
-                        <p class="mb-0" id="textoResumen"></p>
+                        <p class="mb-0 mt-1" id="textoResumen"></p>
                     </div>
 
                     <button type="submit" class="btn btn-success w-100" id="btnReservar" disabled>
@@ -144,9 +145,13 @@ const canchaId = <?php echo $cancha['id']; ?>;
 const precios = <?php echo json_encode($precios); ?>;
 const precioBase = <?php echo $cancha['precio_por_hora']; ?>;
 
+function obtenerDia(fechaStr) {
+    const partes = fechaStr.split('-');
+    return new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2])).getDay() || 7;
+}
 function obtenerPrecio(fecha, hora) {
     if (!precios || precios.length === 0) return precioBase;
-    const dia = new Date(fecha).getDay() || 7;
+    const dia = obtenerDia(fecha);
     for (const p of precios) {
         if (p.dia_semana_inicio && p.dia_semana_fin) {
             if (dia >= parseInt(p.dia_semana_inicio) && dia <= parseInt(p.dia_semana_fin)) {
@@ -200,13 +205,17 @@ document.addEventListener('DOMContentLoaded', function() {
     calendar.render();
 });
 
+function formatearFecha(fechaStr) {
+    const partes = fechaStr.split('-');
+    const d = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+    return d.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
 function cargarSlots(fecha) {
     fechaSeleccionada = fecha;
     horaSeleccionada = null;
-    document.getElementById('fechaSeleccionadaTexto').textContent = new Date(fecha).toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('fechaSeleccionadaTexto').textContent = formatearFecha(fecha);
     document.getElementById('fechaReserva').value = fecha;
     document.getElementById('btnReservar').disabled = true;
-    document.getElementById('resumenReserva').style.display = 'none';
 
     const container = document.getElementById('slotsContainer');
     container.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"></div> Cargando horarios...</div>';
@@ -216,30 +225,35 @@ function cargarSlots(fecha) {
         .then(data => {
             container.innerHTML = '';
             if (data.length === 0) {
-                container.innerHTML = '<div class="alert alert-warning mb-0">No hay horarios disponibles para esta fecha.</div>';
+                container.innerHTML = '<div class="alert alert-warning mb-0">No hay horarios configurados para esta fecha.</div>';
                 return;
             }
             const row = document.createElement('div');
             row.className = 'row g-2';
             data.forEach(h => {
+                const ocupado = parseInt(h.ocupado) === 1;
                 const precio = obtenerPrecio(fecha, h.hora_inicio);
                 const col = document.createElement('div');
                 col.className = 'col-6 col-md-4 col-lg-3';
                 const div = document.createElement('div');
-                div.className = 'slot-disponible';
+                div.className = ocupado ? 'slot-ocupado' : 'slot-disponible';
                 div.textContent = h.hora_inicio.substring(0,5) + ' - ' + h.hora_fin.substring(0,5) + ' ($' + precio.toFixed(2) + ')';
-                div.dataset.horaInicio = h.hora_inicio;
-                div.dataset.horaFin = h.hora_fin;
-                div.dataset.precio = precio;
-                div.addEventListener('click', function() {
-                    document.querySelectorAll('.slot-disponible').forEach(s => s.classList.remove('slot-seleccionado'));
-                    this.classList.add('slot-seleccionado');
-                    horaSeleccionada = this.dataset.horaInicio;
-                    document.getElementById('horaInicio').value = this.dataset.horaInicio;
-                    document.getElementById('horaFin').value = this.dataset.horaFin;
-                    document.getElementById('precioHora').value = this.dataset.precio;
-                    actualizarResumen();
-                });
+                if (ocupado) {
+                    div.title = 'Horario ocupado';
+                } else {
+                    div.dataset.horaInicio = h.hora_inicio;
+                    div.dataset.horaFin = h.hora_fin;
+                    div.dataset.precio = precio;
+                    div.addEventListener('click', function() {
+                        document.querySelectorAll('.slot-disponible').forEach(s => s.classList.remove('slot-seleccionado'));
+                        this.classList.add('slot-seleccionado');
+                        horaSeleccionada = this.dataset.horaInicio;
+                        document.getElementById('horaInicio').value = this.dataset.horaInicio;
+                        document.getElementById('horaFin').value = this.dataset.horaFin;
+                        document.getElementById('precioHora').value = this.dataset.precio;
+                        actualizarResumen();
+                    });
+                }
                 col.appendChild(div);
                 row.appendChild(col);
             });

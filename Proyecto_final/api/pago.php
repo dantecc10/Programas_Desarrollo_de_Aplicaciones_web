@@ -32,19 +32,6 @@ $resultado = $pagoModel->procesarPago($reservacionId, $metodoPago);
 if ($resultado['exito']) {
     $historial->registrar($_SESSION['usuario_id'], 'Pago realizado', "Pago de reservación #$reservacionId - Ref: {$resultado['referencia']}");
 
-    require_once __DIR__ . '/../classes/Mailer.php';
-    $mailer = new Mailer();
-    $mailer->confirmacionReservacion(
-        $_SESSION['usuario_nombre'],
-        $_SESSION['usuario_email'],
-        $reservacion['cancha_nombre'],
-        $reservacion['fecha'],
-        $reservacion['hora_inicio'],
-        $reservacion['hora_fin'],
-        $reservacion['total'],
-        $resultado['referencia']
-    );
-
     $_SESSION['mensaje'] = '¡Pago exitoso! Tu reservación está confirmada. Referencia: ' . $resultado['referencia'];
     $_SESSION['tipo_mensaje'] = 'success';
 } else {

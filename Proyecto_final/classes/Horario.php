@@ -58,6 +58,36 @@ class Horario
         return $stmt->fetchAll();
     }
 
+    public function obtenerConDisponibilidad($canchaId, $fecha)
+    {
+        require_once __DIR__ . '/Reservacion.php';
+        $reservaClean = new Reservacion();
+        $reservaClean->autoCancelarExpiradas();
+
+        $diaSemana = date('N', strtotime($fecha));
+
+        $sql = "SELECT h.*, 
+                    CASE WHEN h.estado != 'disponible' THEN 1
+                         WHEN r.id IS NOT NULL THEN 1
+                         ELSE 0 
+                    END as ocupado
+                FROM horarios h 
+                LEFT JOIN reservaciones r ON r.cancha_id = h.cancha_id 
+                    AND r.fecha = :fecha 
+                    AND r.hora_inicio = h.hora_inicio
+                    AND r.estado IN ('pendiente', 'confirmada')
+                WHERE h.cancha_id = :cancha_id2 
+                AND h.dia_semana = :dia_semana 
+                ORDER BY h.hora_inicio";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            ':fecha' => $fecha,
+            ':cancha_id2' => $canchaId,
+            ':dia_semana' => $diaSemana
+        ]);
+        return $stmt->fetchAll();
+    }
+
     public function actualizar($id, $datos)
     {
         $campos = [];

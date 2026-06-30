@@ -27,6 +27,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <th>Estado</th>
                 <th>Pago</th>
                 <th>Fecha Reservación</th>
+                <th>Acción</th>
             </tr>
         </thead>
         <tbody>
@@ -55,6 +56,15 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
                 </td>
                 <td><?php echo date('d/m/Y H:i', strtotime($h['fecha_reservacion'])); ?></td>
+                <td>
+                    <?php if ($h['estado'] === 'pendiente'): ?>
+                        <a href="pago.php?reservacion_id=<?php echo $h['id']; ?>" class="btn btn-success btn-sm">
+                            <i class="bi bi-credit-card"></i> Pagar
+                        </a>
+                    <?php else: ?>
+                        <span class="text-muted">—</span>
+                    <?php endif; ?>
+                </td>
             </tr>
             <?php endforeach; ?>
         </tbody>
