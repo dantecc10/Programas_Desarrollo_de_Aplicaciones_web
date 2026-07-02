@@ -4,17 +4,11 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/auth_check.php';
 if (!esAdmin()) { header('Location: ../index.php'); exit; }
 require_once __DIR__ . '/../classes/Reservacion.php';
+require_once __DIR__ . '/../classes/Cancha.php';
 require_once __DIR__ . '/../classes/Historial.php';
 $reservacionModel = new Reservacion();
+$canchaModel = new Cancha();
 $historial = new Historial();
-
-$filtroEstado = $_GET['estado'] ?? '';
-$reservaciones = $reservacionModel->obtenerTodas();
-if ($filtroEstado) {
-    $reservaciones = array_filter($reservaciones, function($r) use ($filtroEstado) {
-        return $r['estado'] === $filtroEstado;
-    });
-}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $_POST['accion'] ?? '';
@@ -27,23 +21,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $historial->registrar($_SESSION['usuario_id'], 'Reservación eliminada', "Reservación #{$_POST['id']} eliminada");
         $_SESSION['mensaje'] = 'Reservación eliminada.'; $_SESSION['tipo_mensaje'] = 'warning';
     }
-    header('Location: reservaciones.php'); exit;
+    $params = $_GET;
+    unset($params['msg']);
+    header('Location: reservaciones.php?' . http_build_query($params)); exit;
 }
+
+$pagina = max(1, (int)($_GET['pag'] ?? 1));
+$porPagina = 20;
+
+$filtros = [];
+foreach (['estado', 'cancha_id', 'busqueda', 'fecha_desde', 'fecha_hasta'] as $k) {
+    if (!empty($_GET[$k])) $filtros[$k] = $_GET[$k];
+}
+
+$resultado = $reservacionModel->obtenerPaginas($pagina, $porPagina, $filtros);
+$reservaciones = $resultado['datos'];
+$totalPaginas = $resultado['totalPaginas'];
+$paginaActual = $resultado['pagina'];
+
+$canchas = $canchaModel->obtenerTodas();
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <h3><i class="bi bi-list-check"></i> Todas las Reservaciones</h3>
-    <form method="GET" class="d-flex gap-2">
-        <select name="estado" class="form-select" onchange="this.form.submit()">
-            <option value="">Todos los estados</option>
-            <option value="pendiente" <?php echo $filtroEstado === 'pendiente' ? 'selected' : ''; ?>>Pendiente</option>
-            <option value="confirmada" <?php echo $filtroEstado === 'confirmada' ? 'selected' : ''; ?>>Confirmada</option>
-            <option value="completada" <?php echo $filtroEstado === 'completada' ? 'selected' : ''; ?>>Completada</option>
-            <option value="cancelada" <?php echo $filtroEstado === 'cancelada' ? 'selected' : ''; ?>>Cancelada</option>
-        </select>
-    </form>
+    <small class="text-muted"><?php echo $resultado['total']; ?> registro(s)</small>
 </div>
+
+<form method="GET" class="row g-2 mb-3">
+    <div class="col-auto">
+        <select name="estado" class="form-select">
+            <option value="">Todos los estados</option>
+            <?php foreach (['pendiente','confirmada','completada','cancelada'] as $e): ?>
+            <option value="<?php echo $e; ?>" <?php echo ($_GET['estado']??'') === $e ? 'selected' : ''; ?>><?php echo ucfirst($e); ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="cancha_id" class="form-select">
+            <option value="">Todas las canchas</option>
+            <?php foreach ($canchas as $c): ?>
+            <option value="<?php echo $c['id']; ?>" <?php echo ($_GET['cancha_id']??'') == $c['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($c['nombre']); ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="col-auto">
+        <input type="date" name="fecha_desde" class="form-control" value="<?php echo $_GET['fecha_desde'] ?? ''; ?>" placeholder="Desde">
+    </div>
+    <div class="col-auto">
+        <input type="date" name="fecha_hasta" class="form-control" value="<?php echo $_GET['fecha_hasta'] ?? ''; ?>" placeholder="Hasta">
+    </div>
+    <div class="col-auto">
+        <input type="text" name="busqueda" class="form-control" placeholder="Buscar..." value="<?php echo htmlspecialchars($_GET['busqueda'] ?? ''); ?>">
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Filtrar</button>
+        <a href="reservaciones.php" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Limpiar</a>
+    </div>
+</form>
 
 <div class="table-responsive">
     <table class="table table-hover table-striped">
@@ -61,9 +96,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <td><?php echo substr($r['hora_inicio'],0,5); ?> - <?php echo substr($r['hora_fin'],0,5); ?></td>
                 <td class="fw-bold">$<?php echo number_format($r['total'],2); ?></td>
                 <td>
-                    <?php
-                    $mapa = ['pendiente'=>'warning','confirmada'=>'success','cancelada'=>'danger','completada'=>'secondary'];
-                    ?>
+                    <?php $mapa = ['pendiente'=>'warning','confirmada'=>'success','cancelada'=>'danger','completada'=>'secondary']; ?>
                     <span class="badge bg-<?php echo $mapa[$r['estado']] ?? 'secondary'; ?>"><?php echo ucfirst($r['estado']); ?></span>
                 </td>
                 <td><small><?php echo date('d/m/Y H:i', strtotime($r['fecha_reservacion'])); ?></small></td>
@@ -88,9 +121,34 @@ require_once __DIR__ . '/../includes/header.php';
             </tr>
             <?php endforeach; ?>
             <?php if (empty($reservaciones)): ?>
-            <tr><td colspan="9" class="text-center text-muted">No hay reservaciones</td></tr>
+            <tr><td colspan="10" class="text-center text-muted">No hay reservaciones</td></tr>
             <?php endif; ?>
         </tbody>
     </table>
 </div>
+
+<?php if ($totalPaginas > 1): ?>
+<nav>
+    <ul class="pagination justify-content-center">
+        <li class="page-item <?php echo $paginaActual <= 1 ? 'disabled' : ''; ?>">
+            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['pag'=>1])); ?>"><i class="bi bi-chevron-double-left"></i></a>
+        </li>
+        <li class="page-item <?php echo $paginaActual <= 1 ? 'disabled' : ''; ?>">
+            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['pag'=>$paginaActual-1])); ?>"><i class="bi bi-chevron-left"></i></a>
+        </li>
+        <?php for ($i = max(1, $paginaActual-2); $i <= min($totalPaginas, $paginaActual+2); $i++): ?>
+        <li class="page-item <?php echo $i === $paginaActual ? 'active' : ''; ?>">
+            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['pag'=>$i])); ?>"><?php echo $i; ?></a>
+        </li>
+        <?php endfor; ?>
+        <li class="page-item <?php echo $paginaActual >= $totalPaginas ? 'disabled' : ''; ?>">
+            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['pag'=>$paginaActual+1])); ?>"><i class="bi bi-chevron-right"></i></a>
+        </li>
+        <li class="page-item <?php echo $paginaActual >= $totalPaginas ? 'disabled' : ''; ?>">
+            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['pag'=>$totalPaginas])); ?>"><i class="bi bi-chevron-double-right"></i></a>
+        </li>
+    </ul>
+</nav>
+<?php endif; ?>
+
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

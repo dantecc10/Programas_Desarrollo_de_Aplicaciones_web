@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/load_env.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 define('DB_HOST', getenv('DB_HOST') ?: '127.0.0.1');
 define('DB_NAME', getenv('DB_NAME') ?: 'canchas_deportivas');
@@ -22,6 +23,10 @@ define('MAIL_USER', getenv('MAIL_USER') ?: '');
 define('MAIL_PASS', getenv('MAIL_PASS') ?: '');
 define('MAIL_FROM', getenv('MAIL_FROM') ?: '');
 define('MAIL_FROM_NAME', getenv('MAIL_FROM_NAME') ?: SITE_NAME);
+
+define('PAYPAL_MODE', getenv('PAYPAL_MODE') ?: 'sandbox');
+define('PAYPAL_CLIENT_ID', getenv('PAYPAL_CLIENT_ID') ?: '');
+define('PAYPAL_CLIENT_SECRET', getenv('PAYPAL_CLIENT_SECRET') ?: '');
 
 date_default_timezone_set('America/Mexico_City');
 

@@ -18,6 +18,14 @@ class Precio
         return $stmt->fetchAll();
     }
 
+    public function obtenerPorCanchaAdmin($canchaId)
+    {
+        $sql = "SELECT * FROM precios WHERE cancha_id = :cancha_id ORDER BY FIELD(tipo_precio, 'regular', 'pico', 'finde'), id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':cancha_id' => $canchaId]);
+        return $stmt->fetchAll();
+    }
+
     public function obtenerPrecio($canchaId, $fecha, $hora)
     {
         $diaSemana = date('N', strtotime($fecha));

@@ -11,6 +11,8 @@ require_once __DIR__ . '/../config/database.php';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="<?php echo SITE_URL; ?>/assets/css/style.css">
+    <link rel="stylesheet" href="<?php echo SITE_URL; ?>/assets/css/dark-mode.css">
+    <script>(function(){try{var d=document.documentElement,c=d.classList,s=localStorage.getItem('dark-mode');c.toggle('dark-mode',s==='1'||(s===null&&window.matchMedia('(prefers-color-scheme:dark)').matches))}catch(e){}})();</script>
 </head>
 <body>
 <?php require_once 'navbar.php'; ?>

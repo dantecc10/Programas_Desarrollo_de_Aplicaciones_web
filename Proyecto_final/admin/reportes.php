@@ -29,6 +29,21 @@ $canchas = $canchaModel->obtenerTodas();
 $ingresoTotalGeneral = $pagoModel->ingresoTotal();
 $metodoPago = $pagoModel->metodoPagoMasUsado();
 
+$ingresosPorDia = [];
+foreach ($reporteIngresos as $r) {
+    $dia = $r['dia'];
+    if (!isset($ingresosPorDia[$dia])) {
+        $ingresosPorDia[$dia] = ['reservaciones' => 0, 'ingresos' => 0];
+    }
+    $ingresosPorDia[$dia]['reservaciones'] += (int)$r['total_reservaciones'];
+    $ingresosPorDia[$dia]['ingresos'] += (float)$r['ingreso_total'];
+}
+ksort($ingresosPorDia);
+
+$chartLabels = json_encode(array_keys($ingresosPorDia));
+$chartReservas = json_encode(array_column($ingresosPorDia, 'reservaciones'));
+$chartIngresos = json_encode(array_column($ingresosPorDia, 'ingresos'));
+
 require_once __DIR__ . '/../includes/header.php';
 ?>
 <h3><i class="bi bi-file-earmark-bar-graph"></i> Reportes de Reservaciones</h3>
@@ -93,6 +108,25 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><h6><i class="bi bi-bar-chart"></i> Ingresos por Día</h6></div>
+            <div class="card-body">
+                <canvas id="chartIngresos"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><h6><i class="bi bi-bar-chart"></i> Reservaciones por Día</h6></div>
+            <div class="card-body">
+                <canvas id="chartReservas"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card shadow-sm mb-4">
     <div class="card-header"><h5><i class="bi bi-table"></i> Reporte de Ingresos por Día y Tipo</h5></div>
     <div class="card-body">
@@ -146,9 +180,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <td><?php echo substr($r['hora_inicio'],0,5); ?> - <?php echo substr($r['hora_fin'],0,5); ?></td>
                         <td class="fw-bold">$<?php echo number_format($r['total'],2); ?></td>
                         <td>
-                            <?php
-                            $mapa = ['pendiente'=>'warning','confirmada'=>'success','cancelada'=>'danger','completada'=>'secondary'];
-                            ?>
+                            <?php $mapa = ['pendiente'=>'warning','confirmada'=>'success','cancelada'=>'danger','completada'=>'secondary']; ?>
                             <span class="badge bg-<?php echo $mapa[$r['estado']] ?? 'secondary'; ?>"><?php echo ucfirst($r['estado']); ?></span>
                         </td>
                         <td><small><?php echo htmlspecialchars($r['observaciones'] ?? '-'); ?></small></td>
@@ -162,4 +194,65 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function isDark() {
+        return document.documentElement.classList.contains('dark-mode');
+    }
+    var textColor = isDark() ? '#e0e0e0' : '#333';
+    var gridColor = isDark() ? '#2d3039' : '#dee2e6';
+
+    var labels = <?php echo $chartLabels; ?>;
+    var dias = labels.map(function(d) {
+        var parts = d.split('-');
+        return parts[2] + '/' + parts[1];
+    });
+
+    new Chart(document.getElementById('chartIngresos'), {
+        type: 'bar',
+        data: {
+            labels: dias,
+            datasets: [{
+                label: 'Ingresos ($)',
+                data: <?php echo $chartIngresos; ?>,
+                backgroundColor: 'rgba(25,135,84,0.7)',
+                borderColor: 'rgba(25,135,84,1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: textColor } } },
+            scales: {
+                x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                y: { ticks: { color: textColor, callback: function(v) { return '$' + v; } }, grid: { color: gridColor } }
+            }
+        }
+    });
+
+    new Chart(document.getElementById('chartReservas'), {
+        type: 'bar',
+        data: {
+            labels: dias,
+            datasets: [{
+                label: 'Reservaciones',
+                data: <?php echo $chartReservas; ?>,
+                backgroundColor: 'rgba(13,110,253,0.7)',
+                borderColor: 'rgba(13,110,253,1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: textColor } } },
+            scales: {
+                x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                y: { ticks: { color: textColor, stepSize: 1 }, grid: { color: gridColor } }
+            }
+        }
+    });
+});
+</script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

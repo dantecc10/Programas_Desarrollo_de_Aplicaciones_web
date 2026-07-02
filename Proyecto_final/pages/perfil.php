@@ -80,11 +80,36 @@ require_once __DIR__ . '/../includes/header.php';
                 <div id="mensajePerfil" class="mt-3"></div>
             </div>
         </div>
+
+        <?php if ($usuario['rol'] === 'cliente'): ?>
+        <div class="card shadow mt-4 border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5><i class="bi bi-exclamation-triangle"></i> Zona de Peligro</h5>
+            </div>
+            <div class="card-body">
+                <?php if ($usuario['solicitud_eliminacion']): ?>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-clock"></i> Solicitaste la eliminación de tu cuenta el
+                        <strong><?php echo date('d/m/Y H:i', strtotime($usuario['solicitud_eliminacion'])); ?></strong>.
+                        Tu cuenta será eliminada automáticamente en 30 días si no cancelas esta solicitud.
+                    </div>
+                    <button class="btn btn-success" id="btnCancelarEliminacion">
+                        <i class="bi bi-arrow-counterclockwise"></i> Cancelar Solicitud
+                    </button>
+                <?php else: ?>
+                    <p class="text-muted">Si deseas eliminar tu cuenta y todos tus datos, solicita la eliminación. Tendrás 30 días para cancelarlo.</p>
+                    <button class="btn btn-danger" id="btnSolicitarEliminacion">
+                        <i class="bi bi-trash"></i> Solicitar Eliminación de Cuenta
+                    </button>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
 
 <script>
-document.getElementById('formPerfil').addEventListener('submit', function(e) {
+document.getElementById('formPerfil')?.addEventListener('submit', function(e) {
     e.preventDefault();
     const formData = new FormData(this);
     formData.append('accion', 'actualizar');
@@ -105,7 +130,7 @@ document.getElementById('formPerfil').addEventListener('submit', function(e) {
         });
 });
 
-document.getElementById('formPassword').addEventListener('submit', function(e) {
+document.getElementById('formPassword')?.addEventListener('submit', function(e) {
     e.preventDefault();
     const formData = new FormData(this);
     formData.append('accion', 'cambiar_password');
@@ -123,6 +148,25 @@ document.getElementById('formPassword').addEventListener('submit', function(e) {
         })
         .catch(() => {
             msgDiv.innerHTML = '<div class="alert alert-danger">Error de conexión.</div>';
+        });
+});
+
+document.getElementById('btnSolicitarEliminacion')?.addEventListener('click', function() {
+    if (!confirm('¿Estás seguro de solicitar la eliminación de tu cuenta? Tendrás 30 días para cancelarlo.')) return;
+    fetch('../api/perfil.php', { method: 'POST', body: new URLSearchParams({ accion: 'solicitar_eliminacion' }) })
+        .then(r => r.json())
+        .then(data => {
+            if (data.exito) location.reload();
+            else alert(data.mensaje);
+        });
+});
+
+document.getElementById('btnCancelarEliminacion')?.addEventListener('click', function() {
+    fetch('../api/perfil.php', { method: 'POST', body: new URLSearchParams({ accion: 'cancelar_eliminacion' }) })
+        .then(r => r.json())
+        .then(data => {
+            if (data.exito) location.reload();
+            else alert(data.mensaje);
         });
 });
 </script>

@@ -47,9 +47,55 @@ class Usuario
 
     public function obtenerTodos()
     {
-        $sql = "SELECT * FROM usuarios ORDER BY fecha_registro DESC";
-        $stmt = $this->db->query($sql);
-        return $stmt->fetchAll();
+        return $this->obtenerPaginas(0, 0)['datos'];
+    }
+
+    public function obtenerPaginas($pagina = 1, $porPagina = 20, $filtros = [])
+    {
+        $where = [];
+        $params = [];
+
+        if (!empty($filtros['busqueda'])) {
+            $where[] = "(nombre LIKE :busqueda OR email LIKE :busqueda)";
+            $params[':busqueda'] = '%' . $filtros['busqueda'] . '%';
+        }
+        if (!empty($filtros['rol'])) {
+            $where[] = "rol = :rol";
+            $params[':rol'] = $filtros['rol'];
+        }
+        if (isset($filtros['activo']) && $filtros['activo'] !== '') {
+            $where[] = "activo = :activo";
+            $params[':activo'] = $filtros['activo'];
+        }
+
+        $whereClause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
+        $countSql = "SELECT COUNT(*) FROM usuarios $whereClause";
+        $countStmt = $this->db->prepare($countSql);
+        $countStmt->execute($params);
+        $total = (int)$countStmt->fetchColumn();
+
+        if ($porPagina <= 0) {
+            $pagina = 1;
+            $porPagina = $total > 0 ? $total : 1;
+        }
+
+        $totalPaginas = max(1, (int)ceil($total / $porPagina));
+        $pagina = max(1, min($pagina, $totalPaginas));
+        $offset = ($pagina - 1) * $porPagina;
+
+        $sql = "SELECT * FROM usuarios $whereClause ORDER BY fecha_registro DESC LIMIT $porPagina OFFSET $offset";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $datos = $stmt->fetchAll();
+
+        return [
+            'datos' => $datos,
+            'total' => $total,
+            'pagina' => $pagina,
+            'porPagina' => $porPagina,
+            'totalPaginas' => $totalPaginas,
+        ];
     }
 
     public function actualizar($id, $datos)
@@ -103,6 +149,55 @@ class Usuario
             ':password' => password_hash($password, PASSWORD_DEFAULT),
             ':email' => $email
         ]);
+    }
+
+    public function actualizarUltimoAcceso($id)
+    {
+        $sql = "UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = :id";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([':id' => $id]);
+    }
+
+    public function solicitarEliminacion($id)
+    {
+        $sql = "UPDATE usuarios SET solicitud_eliminacion = NOW() WHERE id = :id";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([':id' => $id]);
+    }
+
+    public function cancelarSolicitudEliminacion($id)
+    {
+        $sql = "UPDATE usuarios SET solicitud_eliminacion = NULL WHERE id = :id";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([':id' => $id]);
+    }
+
+    public function autoEliminarCuentas($diasInactividad = 90, $diasSolicitud = 30)
+    {
+        $total = 0;
+
+        $sql = "DELETE FROM usuarios WHERE solicitud_eliminacion IS NOT NULL 
+                AND solicitud_eliminacion < DATE_SUB(NOW(), INTERVAL :dias DAY)
+                AND rol = 'cliente'";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':dias' => $diasSolicitud]);
+        $total += $stmt->rowCount();
+
+        $sql = "DELETE FROM usuarios WHERE ultimo_acceso IS NULL 
+                AND fecha_registro < DATE_SUB(NOW(), INTERVAL :dias2 DAY)
+                AND rol = 'cliente'";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':dias2' => $diasInactividad]);
+        $total += $stmt->rowCount();
+
+        $sql = "DELETE FROM usuarios WHERE ultimo_acceso IS NOT NULL 
+                AND ultimo_acceso < DATE_SUB(NOW(), INTERVAL :dias3 DAY)
+                AND rol = 'cliente'";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':dias3' => $diasInactividad]);
+        $total += $stmt->rowCount();
+
+        return $total;
     }
 
     public function emailExiste($email)

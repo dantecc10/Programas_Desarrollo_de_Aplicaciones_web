@@ -51,13 +51,20 @@ if (isset($_SESSION['usuario_id'])) {
                         <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>/admin/horarios.php"><i class="bi bi-clock"></i> Gestionar Horarios</a></li>
                         <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>/admin/reservaciones.php"><i class="bi bi-list-check"></i> Reservaciones</a></li>
                         <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>/admin/usuarios.php"><i class="bi bi-people"></i> Usuarios</a></li>
+                        <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>/admin/resenas.php"><i class="bi bi-star"></i> Reseñas</a></li>
                         <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>/admin/reportes.php"><i class="bi bi-file-earmark-bar-graph"></i> Reportes</a></li>
+                        <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>/admin/festivos.php"><i class="bi bi-calendar-event"></i> Festivos</a></li>
                     </ul>
                 </li>
                 <?php endif; ?>
                 <?php endif; ?>
             </ul>
             <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" href="#" id="darkModeToggle" role="button" aria-label="Cambiar modo oscuro/claro">
+                        <i class="bi bi-moon-fill"></i>
+                    </a>
+                </li>
                 <?php if (isset($_SESSION['usuario_id'])): ?>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown">

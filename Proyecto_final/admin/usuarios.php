@@ -28,14 +28,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['mensaje'] = 'Usuario eliminado.'; $_SESSION['tipo_mensaje'] = 'warning';
         }
     }
-    header('Location: usuarios.php'); exit;
+    $params = $_GET;
+    unset($params['msg']);
+    header('Location: usuarios.php?' . http_build_query($params)); exit;
 }
 
-$usuarios = $usuarioModel->obtenerTodos();
+$pagina = max(1, (int)($_GET['pag'] ?? 1));
+$porPagina = 20;
+
+$filtros = [];
+foreach (['busqueda', 'rol'] as $k) {
+    if (!empty($_GET[$k])) $filtros[$k] = $_GET[$k];
+}
+if (isset($_GET['activo']) && $_GET['activo'] !== '') {
+    $filtros['activo'] = $_GET['activo'];
+}
+
+$resultado = $usuarioModel->obtenerPaginas($pagina, $porPagina, $filtros);
+$usuarios = $resultado['datos'];
+$totalPaginas = $resultado['totalPaginas'];
+$paginaActual = $resultado['pagina'];
+
 require_once __DIR__ . '/../includes/header.php';
 ?>
-<h3><i class="bi bi-people"></i> Usuarios Registrados</h3>
-<hr>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h3><i class="bi bi-people"></i> Usuarios Registrados</h3>
+    <small class="text-muted"><?php echo $resultado['total']; ?> registro(s)</small>
+</div>
+
+<form method="GET" class="row g-2 mb-3">
+    <div class="col-auto">
+        <select name="rol" class="form-select">
+            <option value="">Todos los roles</option>
+            <option value="cliente" <?php echo ($_GET['rol']??'') === 'cliente' ? 'selected' : ''; ?>>Cliente</option>
+            <option value="admin" <?php echo ($_GET['rol']??'') === 'admin' ? 'selected' : ''; ?>>Admin</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="activo" class="form-select">
+            <option value="">Todos</option>
+            <option value="1" <?php echo ($_GET['activo']??'') === '1' ? 'selected' : ''; ?>>Activos</option>
+            <option value="0" <?php echo ($_GET['activo']??'') === '0' ? 'selected' : ''; ?>>Inactivos</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <input type="text" name="busqueda" class="form-control" placeholder="Buscar nombre o email..." value="<?php echo htmlspecialchars($_GET['busqueda'] ?? ''); ?>">
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Filtrar</button>
+        <a href="usuarios.php" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Limpiar</a>
+    </div>
+</form>
+
 <div class="table-responsive">
     <table class="table table-hover table-striped">
         <thead class="table-dark">
@@ -79,6 +123,30 @@ require_once __DIR__ . '/../includes/header.php';
         </tbody>
     </table>
 </div>
+
+<?php if ($totalPaginas > 1): ?>
+<nav>
+    <ul class="pagination justify-content-center">
+        <li class="page-item <?php echo $paginaActual <= 1 ? 'disabled' : ''; ?>">
+            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['pag'=>1])); ?>"><i class="bi bi-chevron-double-left"></i></a>
+        </li>
+        <li class="page-item <?php echo $paginaActual <= 1 ? 'disabled' : ''; ?>">
+            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['pag'=>$paginaActual-1])); ?>"><i class="bi bi-chevron-left"></i></a>
+        </li>
+        <?php for ($i = max(1, $paginaActual-2); $i <= min($totalPaginas, $paginaActual+2); $i++): ?>
+        <li class="page-item <?php echo $i === $paginaActual ? 'active' : ''; ?>">
+            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['pag'=>$i])); ?>"><?php echo $i; ?></a>
+        </li>
+        <?php endfor; ?>
+        <li class="page-item <?php echo $paginaActual >= $totalPaginas ? 'disabled' : ''; ?>">
+            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['pag'=>$paginaActual+1])); ?>"><i class="bi bi-chevron-right"></i></a>
+        </li>
+        <li class="page-item <?php echo $paginaActual >= $totalPaginas ? 'disabled' : ''; ?>">
+            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['pag'=>$totalPaginas])); ?>"><i class="bi bi-chevron-double-right"></i></a>
+        </li>
+    </ul>
+</nav>
+<?php endif; ?>
 
 <?php foreach ($usuarios as $u): ?>
 <div class="modal fade" id="modalEditar<?php echo $u['id']; ?>" tabindex="-1">

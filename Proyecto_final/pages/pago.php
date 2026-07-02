@@ -67,7 +67,7 @@ $segundosRestantes = max(0, $expiracion - time());
     <div class="col-md-6">
         <div class="card shadow">
             <div class="card-header bg-success text-white">
-                <h5><i class="bi bi-credit-card"></i> Simulación de Pago</h5>
+                <h5><i class="bi bi-credit-card"></i> Procesar Pago</h5>
             </div>
             <div class="card-body">
                 <div class="bg-danger text-white rounded-3 p-3 mb-3 text-center" id="cronometro">
@@ -87,38 +87,27 @@ $segundosRestantes = max(0, $expiracion - time());
                     <p class="fs-4 fw-bold text-success mb-0">Total a Pagar: $<?php echo number_format($reservacion['total'], 2); ?></p>
                 </div>
 
-                <form action="../api/pago.php" method="POST" id="formPago">
-                    <input type="hidden" name="reservacion_id" value="<?php echo $reservacion['id']; ?>">
+                <?php if (PAYPAL_CLIENT_ID): ?>
+                <div class="mb-4">
+                    <h6 class="text-primary mb-3"><i class="bi bi-paypal"></i> Pago con PayPal</h6>
+                    <div id="paypal-button-container"></div>
+                </div>
+                <hr>
+                <?php endif; ?>
 
-                    <div class="mb-3">
-                        <label class="form-label">Método de Pago</label>
-                        <select name="metodo_pago" class="form-select" required>
-                            <option value="tarjeta">Tarjeta de Crédito/Débito</option>
+                <div class="mt-3">
+                    <h6 class="text-muted mb-3"><i class="bi bi-other"></i> Otros métodos</h6>
+                    <form action="../api/pago.php" method="POST" id="formPago">
+                        <input type="hidden" name="reservacion_id" value="<?php echo $reservacion['id']; ?>">
+                        <select name="metodo_pago" class="form-select mb-3">
                             <option value="transferencia">Transferencia Bancaria</option>
                             <option value="efectivo">Efectivo (Pago en establecimiento)</option>
                         </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Número de Tarjeta (simulado)</label>
-                        <input type="text" class="form-control" value="4242 4242 4242 4242" readonly>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Vencimiento</label>
-                            <input type="text" class="form-control" value="12/28" readonly>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">CVV</label>
-                            <input type="text" class="form-control" value="123" readonly>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn btn-success w-100 btn-lg" id="btnPagar" onclick="return confirm('¿Confirmar el pago de $<?php echo number_format($reservacion['total'], 2); ?>?')">
-                        <i class="bi bi-check-circle"></i> Pagar $<?php echo number_format($reservacion['total'], 2); ?>
-                    </button>
-                </form>
+                        <button type="submit" class="btn btn-outline-success w-100" id="btnPagar" onclick="return confirm('¿Confirmar el pago de $<?php echo number_format($reservacion['total'], 2); ?>?')">
+                            <i class="bi bi-check-circle"></i> Marcar como Pagado (simulado)
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -132,14 +121,23 @@ $segundosRestantes = max(0, $expiracion - time());
     var btnPagar = document.getElementById('btnPagar');
     var formPago = document.getElementById('formPago');
 
+    function deshabilitarTodo() {
+        span.textContent = 'EXPIRADO';
+        cronometro.className = 'bg-secondary text-white rounded-3 p-3 mb-3 text-center';
+        if (btnPagar) {
+            btnPagar.disabled = true;
+            btnPagar.className = 'btn btn-secondary w-100 btn-lg mt-3';
+            btnPagar.innerHTML = '<i class="bi bi-x-circle"></i> Tiempo Expirado';
+        }
+        if (formPago) {
+            var selects = formPago.querySelectorAll('select');
+            for (var i = 0; i < selects.length; i++) selects[i].disabled = true;
+        }
+    }
+
     function actualizar() {
         if (segundos <= 0) {
-            span.textContent = 'EXPIRADO';
-            cronometro.className = 'bg-secondary text-white rounded-3 p-3 mb-3 text-center';
-            btnPagar.disabled = true;
-            btnPagar.className = 'btn btn-secondary w-100 btn-lg';
-            btnPagar.innerHTML = '<i class="bi bi-x-circle"></i> Tiempo Expirado';
-            formPago.querySelector('select').disabled = true;
+            deshabilitarTodo();
             return;
         }
         var m = Math.floor(segundos / 60);
@@ -157,4 +155,48 @@ $segundosRestantes = max(0, $expiracion - time());
     }, 1000);
 })();
 </script>
+
+<?php if (PAYPAL_CLIENT_ID): ?>
+<script src="https://www.paypal.com/sdk/js?client-id=<?= PAYPAL_CLIENT_ID ?>&currency=MXN&intent=capture"></script>
+<script>
+paypal.Buttons({
+    createOrder: function() {
+        return fetch('../api/paypal_create_order.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reservacion_id: <?= $reservacion['id'] ?> })
+        }).then(function(res) {
+            return res.json();
+        }).then(function(data) {
+            if (data.error) throw new Error(data.error);
+            return data.orderID;
+        });
+    },
+    onApprove: function(data) {
+        return fetch('../api/paypal_capture_order.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                reservacion_id: <?= $reservacion['id'] ?>,
+                order_id: data.orderID
+            })
+        }).then(function(res) {
+            return res.json();
+        }).then(function(data) {
+            if (data.status === 'COMPLETED') {
+                window.location.href = 'mis_reservaciones.php';
+            } else {
+                alert('Error al procesar el pago. Intenta de nuevo.');
+            }
+        });
+    },
+    onCancel: function() {
+        alert('Pago cancelado. Puedes intentar de nuevo.');
+    },
+    onError: function(err) {
+        alert('Ocurrió un error con PayPal. Intenta de nuevo.');
+    }
+}).render('#paypal-button-container');
+</script>
+<?php endif; ?>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

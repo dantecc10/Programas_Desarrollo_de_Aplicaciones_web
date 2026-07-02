@@ -24,7 +24,7 @@ $canchasDisponibles = $canchaModel->contarDisponibles();
 $totalReservaciones = $reservacionModel->contarPorEstado();
 $pendientes = $reservacionModel->contarPorEstado('pendiente');
 $confirmadas = $reservacionModel->contarPorEstado('confirmada');
-$ingresosMes = $pagoModel->ingresoTotal(date('Y-m-01'), date('Y-m-t'));
+$ingresosMes = $pagoModel->ingresoTotal(date('Y-m-01'), date('Y-m-t 23:59:59'));
 require_once __DIR__ . '/../includes/header.php';
 ?>
 <div class="d-flex justify-content-between align-items-center mb-4">

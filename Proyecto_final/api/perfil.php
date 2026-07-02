@@ -86,4 +86,18 @@ if ($accion === 'cambiar_password') {
     exit;
 }
 
+if ($accion === 'solicitar_eliminacion') {
+    $usuarioModel->solicitarEliminacion($userId);
+    $historial->registrar($userId, 'Eliminación solicitada', 'Usuario solicitó eliminación de cuenta');
+    echo json_encode(['exito' => true, 'mensaje' => 'Solicitud de eliminación registrada. Tienes 30 días para cancelarla.']);
+    exit;
+}
+
+if ($accion === 'cancelar_eliminacion') {
+    $usuarioModel->cancelarSolicitudEliminacion($userId);
+    $historial->registrar($userId, 'Eliminación cancelada', 'Usuario canceló solicitud de eliminación');
+    echo json_encode(['exito' => true, 'mensaje' => 'Solicitud de eliminación cancelada.']);
+    exit;
+}
+
 echo json_encode(['exito' => false, 'mensaje' => 'Acción no válida.']);

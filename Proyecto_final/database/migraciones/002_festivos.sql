@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS festivos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    fecha DATE NOT NULL UNIQUE,
+    nombre VARCHAR(100) NOT NULL,
+    activo TINYINT(1) DEFAULT 1,
+    INDEX idx_fecha (fecha)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -14,6 +14,7 @@ if ($usuario) {
     $_SESSION['usuario_nombre'] = $usuario['nombre'];
     $_SESSION['usuario_rol'] = $usuario['rol'];
     $_SESSION['usuario_email'] = $usuario['email'];
+    $usuarioModel->actualizarUltimoAcceso($usuario['id']);
     $historial->registrar($usuario['id'], 'Inicio de sesión', 'Usuario inició sesión');
     $_SESSION['mensaje'] = 'Bienvenido ' . htmlspecialchars($usuario['nombre']);
     $_SESSION['tipo_mensaje'] = 'success';

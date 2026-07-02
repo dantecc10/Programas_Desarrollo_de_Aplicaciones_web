@@ -2,7 +2,9 @@
 $titulo = 'Canchas';
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../classes/Cancha.php';
+require_once __DIR__ . '/../classes/Resena.php';
 $canchaModel = new Cancha();
+$resenaModel = new Resena();
 $tipos = $canchaModel->obtenerTipos();
 $tipoFiltro = $_GET['tipo'] ?? '';
 $busqueda = trim($_GET['buscar'] ?? '');
@@ -43,7 +45,9 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="alert alert-info">No hay canchas disponibles para el filtro seleccionado.</div>
     </div>
     <?php endif; ?>
-    <?php foreach ($canchas as $cancha): ?>
+    <?php foreach ($canchas as $cancha):
+        $prom = $resenaModel->promedioPorCancha($cancha['id']);
+    ?>
     <?php $imgCancha = $canchaModel->resolverImagen($cancha); ?>
     <div class="col-md-4 mb-4">
         <div class="card h-100 shadow-sm">
@@ -64,6 +68,14 @@ require_once __DIR__ . '/../includes/header.php';
                     <span class="fw-bold text-primary fs-5">$<?php echo number_format($cancha['precio_por_hora'], 2); ?>/h</span>
                     <span class="text-muted small"><i class="bi bi-people"></i> Cap. <?php echo $cancha['capacidad']; ?></span>
                 </div>
+                <?php if ($prom['total'] > 0): ?>
+                <div class="mt-1">
+                    <?php for ($i = 1; $i <= 5; $i++): ?>
+                        <i class="bi bi-star<?php echo $i <= round($prom['promedio']) ? '-fill text-warning' : ''; ?>"></i>
+                    <?php endfor; ?>
+                    <small class="text-muted ms-1">(<?php echo $prom['total']; ?>)</small>
+                </div>
+                <?php endif; ?>
                 <hr>
                 <a href="reservar.php?cancha_id=<?php echo $cancha['id']; ?>" class="btn btn-primary w-100">
                     <i class="bi bi-calendar-plus"></i> Reservar Ahora

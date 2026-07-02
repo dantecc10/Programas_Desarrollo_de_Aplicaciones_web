@@ -71,13 +71,73 @@ class Reservacion
 
     public function obtenerTodas()
     {
+        return $this->obtenerPaginas(0, 0)['datos'];
+    }
+
+    public function obtenerPaginas($pagina = 1, $porPagina = 20, $filtros = [])
+    {
+        $where = [];
+        $params = [];
+
+        if (!empty($filtros['estado'])) {
+            $where[] = "r.estado = :estado";
+            $params[':estado'] = $filtros['estado'];
+        }
+        if (!empty($filtros['cancha_id'])) {
+            $where[] = "r.cancha_id = :cancha_id";
+            $params[':cancha_id'] = $filtros['cancha_id'];
+        }
+        if (!empty($filtros['busqueda'])) {
+            $where[] = "(u.nombre LIKE :busqueda OR u.email LIKE :busqueda OR c.nombre LIKE :busqueda)";
+            $params[':busqueda'] = '%' . $filtros['busqueda'] . '%';
+        }
+        if (!empty($filtros['fecha_desde'])) {
+            $where[] = "r.fecha >= :fecha_desde";
+            $params[':fecha_desde'] = $filtros['fecha_desde'];
+        }
+        if (!empty($filtros['fecha_hasta'])) {
+            $where[] = "r.fecha <= :fecha_hasta";
+            $params[':fecha_hasta'] = $filtros['fecha_hasta'];
+        }
+        if (isset($filtros['usuario_id'])) {
+            $where[] = "r.usuario_id = :usuario_id";
+            $params[':usuario_id'] = $filtros['usuario_id'];
+        }
+
+        $whereClause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
+        $countSql = "SELECT COUNT(*) FROM reservaciones r JOIN usuarios u ON r.usuario_id = u.id JOIN canchas c ON r.cancha_id = c.id $whereClause";
+        $countStmt = $this->db->prepare($countSql);
+        $countStmt->execute($params);
+        $total = (int)$countStmt->fetchColumn();
+
+        if ($porPagina <= 0) {
+            $pagina = 1;
+            $porPagina = $total > 0 ? $total : 1;
+        }
+
+        $totalPaginas = max(1, (int)ceil($total / $porPagina));
+        $pagina = max(1, min($pagina, $totalPaginas));
+        $offset = ($pagina - 1) * $porPagina;
+
         $sql = "SELECT r.*, c.nombre as cancha_nombre, c.tipo as cancha_tipo, u.nombre as usuario_nombre, u.email 
                 FROM reservaciones r 
                 JOIN canchas c ON r.cancha_id = c.id 
                 JOIN usuarios u ON r.usuario_id = u.id 
-                ORDER BY r.fecha_reservacion DESC";
-        $stmt = $this->db->query($sql);
-        return $stmt->fetchAll();
+                $whereClause
+                ORDER BY r.fecha_reservacion DESC
+                LIMIT $porPagina OFFSET $offset";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $datos = $stmt->fetchAll();
+
+        return [
+            'datos' => $datos,
+            'total' => $total,
+            'pagina' => $pagina,
+            'porPagina' => $porPagina,
+            'totalPaginas' => $totalPaginas,
+        ];
     }
 
     public function actualizarEstado($id, $estado)

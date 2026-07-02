@@ -1,15 +1,47 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
 
 class Mailer
 {
-    public function enviar($para, $asunto, $cuerpoHtml)
+    private function crearMailer()
     {
-        $mensaje = $this->armarMensaje($cuerpoHtml);
-        return $this->enviarSMTP($para, $asunto, $mensaje);
+        $mail = new PHPMailer(true);
+
+        $mail->isSMTP();
+        $mail->Host = MAIL_HOST;
+        $mail->Port = MAIL_PORT;
+        $mail->SMTPAuth = true;
+        $mail->Username = MAIL_USER;
+        $mail->Password = MAIL_PASS;
+        $mail->CharSet = 'UTF-8';
+        $mail->Encoding = 'base64';
+
+        if (defined('MAIL_SMTP_SECURE') && MAIL_SMTP_SECURE === 'tls') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        } elseif (defined('MAIL_SMTP_SECURE') && MAIL_SMTP_SECURE === 'ssl') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        }
+
+        $mail->SMTPOptions = [
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true,
+            ],
+        ];
+
+        $mail->setFrom(MAIL_FROM, MAIL_FROM_NAME);
+        $mail->isHTML(true);
+
+        return $mail;
     }
 
-    private function armarMensaje($cuerpoHtml)
+    private function armarCuerpo($cuerpoHtml)
     {
         return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><style>
             body { font-family: Arial, sans-serif; background: #f5f6fa; margin: 0; padding: 20px; }
@@ -30,114 +62,20 @@ class Mailer
         </body></html>';
     }
 
-    private function enviarSMTP($para, $asunto, $mensaje)
+    public function enviar($para, $asunto, $cuerpoHtml)
     {
-        $boundary = 'boundary_' . md5(uniqid('', true));
-
-        $cabeceras = "MIME-Version: 1.0\r\n";
-        $cabeceras .= "Content-Type: text/html; charset=UTF-8\r\n";
-        $cabeceras .= "From: " . MAIL_FROM_NAME . " <" . MAIL_FROM . ">\r\n";
-        $cabeceras .= "To: " . $para . "\r\n";
-        $cabeceras .= "Subject: " . $asunto . "\r\n";
-        $cabeceras .= "Date: " . date('r') . "\r\n";
-        $cabeceras .= "X-Mailer: PHP/" . phpversion() . "\r\n";
-
-        $cuerpoCompleto = $cabeceras . "\r\n" . $mensaje;
-
-        $errno = 0;
-        $errstr = '';
-        $protocolo = defined('MAIL_SMTP_SECURE') && MAIL_SMTP_SECURE === 'tls' ? 'tcp' : 'tcp';
-        $puerto = defined('MAIL_PORT') ? MAIL_PORT : 587;
-
-        $conexion = @fsockopen($protocolo . '://' . MAIL_HOST, $puerto, $errno, $errstr, 30);
-        if (!$conexion) {
-            error_log("Mailer: No se pudo conectar a " . MAIL_HOST . ":$puerto - $errstr");
+        try {
+            $mail = $this->crearMailer();
+            $mail->addAddress($para);
+            $mail->Subject = $asunto;
+            $mail->Body = $this->armarCuerpo($cuerpoHtml);
+            $mail->AltBody = strip_tags($cuerpoHtml);
+            $mail->send();
+            return true;
+        } catch (Exception $e) {
+            error_log("Mailer: " . $mail->ErrorInfo ?? $e->getMessage());
             return false;
         }
-
-        $respuesta = fgets($conexion, 515);
-        if (substr($respuesta, 0, 3) !== '220') {
-            fclose($conexion);
-            return false;
-        }
-
-        fputs($conexion, "EHLO " . gethostname() . "\r\n");
-        $respuesta = $this->leerRespuesta($conexion);
-
-        if (defined('MAIL_SMTP_SECURE') && MAIL_SMTP_SECURE === 'tls') {
-            fputs($conexion, "STARTTLS\r\n");
-            $respuesta = fgets($conexion, 515);
-            if (substr($respuesta, 0, 3) !== '220') {
-                fclose($conexion);
-                return false;
-            }
-            stream_socket_enable_crypto($conexion, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
-
-            fputs($conexion, "EHLO " . gethostname() . "\r\n");
-            $this->leerRespuesta($conexion);
-        }
-
-        fputs($conexion, "AUTH LOGIN\r\n");
-        $respuesta = fgets($conexion, 515);
-        if (substr($respuesta, 0, 3) !== '334') {
-            fclose($conexion);
-            return false;
-        }
-
-        fputs($conexion, base64_encode(MAIL_USER) . "\r\n");
-        $respuesta = fgets($conexion, 515);
-        if (substr($respuesta, 0, 3) !== '334') {
-            fclose($conexion);
-            return false;
-        }
-
-        fputs($conexion, base64_encode(MAIL_PASS) . "\r\n");
-        $respuesta = fgets($conexion, 515);
-        if (substr($respuesta, 0, 3) !== '235') {
-            fclose($conexion);
-            return false;
-        }
-
-        fputs($conexion, "MAIL FROM:<" . MAIL_FROM . ">\r\n");
-        $respuesta = fgets($conexion, 515);
-        if (substr($respuesta, 0, 3) !== '250') {
-            fclose($conexion);
-            return false;
-        }
-
-        fputs($conexion, "RCPT TO:<" . $para . ">\r\n");
-        $respuesta = fgets($conexion, 515);
-        if (substr($respuesta, 0, 3) !== '250') {
-            fclose($conexion);
-            return false;
-        }
-
-        fputs($conexion, "DATA\r\n");
-        $respuesta = fgets($conexion, 515);
-        if (substr($respuesta, 0, 3) !== '354') {
-            fclose($conexion);
-            return false;
-        }
-
-        fputs($conexion, $cuerpoCompleto . "\r\n.\r\n");
-        $respuesta = fgets($conexion, 515);
-
-        fputs($conexion, "QUIT\r\n");
-        fclose($conexion);
-
-        return substr($respuesta, 0, 3) === '250';
-    }
-
-    private function leerRespuesta($conexion)
-    {
-        $respuesta = '';
-        while ($linea = fgets($conexion, 515)) {
-            $respuesta .= $linea;
-            if (isset($linea[3]) && $linea[3] === ' ') {
-                break;
-            }
-        }
-        return $respuesta;
     }
 
     public function bienvenida($nombre, $email)
@@ -216,6 +154,21 @@ class Mailer
             </div>
             <p>Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
             <p style="font-size:12px; word-break:break-all;">' . htmlspecialchars($enlace) . '</p>';
+        return $this->enviar($email, $asunto, $cuerpo);
+    }
+
+    public function recordatorioReservacion($nombre, $email, $cancha, $fecha, $horaInicio, $horaFin)
+    {
+        $asunto = 'Recordatorio: Tienes una reservación mañana - ' . SITE_NAME;
+        $cuerpo = '<h2>¡Recordatorio, ' . htmlspecialchars($nombre) . '!</h2>
+            <p>Te recordamos que tienes una reservación mañana en <strong>' . SITE_NAME . '</strong>.</p>
+            <div class="info">
+                <p><strong>Cancha:</strong> ' . htmlspecialchars($cancha) . '</p>
+                <p><strong>Fecha:</strong> ' . date('d/m/Y', strtotime($fecha)) . '</p>
+                <p><strong>Horario:</strong> ' . substr($horaInicio, 0, 5) . ' - ' . substr($horaFin, 0, 5) . '</p>
+            </div>
+            <p>¡Te esperamos!</p>
+            <p style="text-align:center;"><a href="' . SITE_URL . '/pages/mis_reservaciones.php" class="btn">Mis Reservaciones</a></p>';
         return $this->enviar($email, $asunto, $cuerpo);
     }
 }
