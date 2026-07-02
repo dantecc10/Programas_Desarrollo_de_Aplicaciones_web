@@ -4,7 +4,7 @@
 
 - **Materia:** Desarrollo de Aplicaciones Web
 - **Proyecto Final:** TU CANCHA — Sistema Web de Reservación de Canchas Deportivas
-- **Alumno:** Dante Castelán Carpinteyro
+- **Equipo:** Dante Castelán Carpinteyro, María Belén Castañeda Anotzin, Osvaldo Montealegre Nahuácatl
 - **Fecha:** 1 de julio de 2026
 - **URL de producción:** `https://preview.castelancarpinteyro.com`
 
